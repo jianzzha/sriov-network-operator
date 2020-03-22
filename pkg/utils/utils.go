@@ -4,10 +4,12 @@ import (
 	// "bytes"
 	"fmt"
 	"io/ioutil"
+
 	// "net"
 	"os"
 	"os/exec"
 	"path/filepath"
+
 	// "regexp"
 	"strconv"
 	"strings"
@@ -29,6 +31,7 @@ const (
 	netClass              = 0x02
 	numVfsFile            = "sriov_numvfs"
 	scriptsPath           = "bindata/scripts/load-kmod.sh"
+	ifScriptPath          = "bindata/scripts/ifup-vf.sh"
 )
 
 func DiscoverSriovDevices() ([]sriovnetworkv1.InterfaceExt, error) {
@@ -221,6 +224,12 @@ func configSriovDevice(iface *sriovnetworkv1.Interface, ifaceStatus *sriovnetwor
 				if err := setNetdevMTU(addr, iface.Mtu); err != nil {
 					glog.Warningf("configSriovDevice(): fail to set mtu for VF %s: %v", addr, err)
 					return err
+				}
+				ifName := tryGetInterfaceName(addr)
+				glog.Infof("configSriovDevice: bring up VF interface %s", ifName)
+				cmd := exec.Command("/usr/bin/sh", ifScriptPath, ifName)
+				if err := cmd.Run(); err != nil {
+					glog.Warningf("configSriovDevice(): fail to bring up VF interface %s: %v", ifName, err)
 				}
 			} else {
 				if err := BindDpdkDriver(addr, driver); err != nil {
